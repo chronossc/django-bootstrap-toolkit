@@ -1,3 +1,4 @@
+from math import floor
 from django.forms import BaseForm
 from django.forms.forms import BoundField
 from django.forms.widgets import TextInput, CheckboxInput, CheckboxSelectMultiple, RadioSelect
@@ -43,22 +44,26 @@ def bootstrap_stylesheet_tag():
     return u'<link rel="stylesheet" href="%s">' % bootstrap_stylesheet_url()
 
 @register.simple_tag
-def bootstrap_javascript_url(name):
+def bootstrap_javascript_url(name=None):
     """
     URL to Bootstrap javascript file
     """
     if BOOTSTRAP_JS_URL:
         return BOOTSTRAP_JS_URL
-    return BOOTSTRAP_JS_BASE_URL + 'bootstrap-' + name + '.js'
-
+    if name:
+        return BOOTSTRAP_JS_BASE_URL + 'bootstrap-' + name + '.js'
+    else:
+        return BOOTSTRAP_JS_BASE_URL + 'bootstrap.min.js'
 
 @register.simple_tag
-def bootstrap_javascript_tag(name):
+def bootstrap_javascript_tag(name=None):
     """
     HTML tag to insert bootstrap_toolkit javascript file
     """
-
-    return u'<script src="%s"></script>' % bootstrap_javascript_url(name)
+    url = bootstrap_javascript_url(name)
+    if url:
+        return u'<script src="%s"></script>' % url
+    return u''
 
 @register.filter
 def as_bootstrap(form_or_field, layout='vertical,false'):
@@ -124,7 +129,7 @@ def bootstrap_input_type(field):
         raise ValueError("Expected a Field, got a %s" % type(field))
     input_type = getattr(widget, 'bootstrap_input_type', None)
     if input_type:
-        return input_type
+        return unicode(input_type)
     if isinstance(widget, TextInput):
         return u'text'
     if isinstance(widget, CheckboxInput):
@@ -143,21 +148,56 @@ def active_url(request, url, output=u'active'):
     return ''
 
 @register.filter
-def pagination(page, range=5):
+def pagination(page, pages_to_show=11):
     """
     Generate Bootstrap pagination links from a page object
     """
+    pages_to_show = int(pages_to_show)
+    if pages_to_show < 1:
+        raise ValueError("Pagination pages_to_show should be a positive integer, you specified %s" % pages_to_show)
     num_pages = page.paginator.num_pages
     current_page = page.number
-    range_min = max(current_page - range, 1)
-    range_max = min(current_page + range, num_pages)
+    half_page_num = int(floor(pages_to_show / 2)) - 1
+    if half_page_num < 0:
+        half_page_num = 0
+    first_page = current_page - half_page_num
+    if first_page <= 1:
+        first_page = 1
+    if first_page > 1:
+        pages_back = first_page - half_page_num
+        if pages_back < 1:
+            pages_back = 1
+    else:
+        pages_back = None
+    last_page = first_page + pages_to_show - 1
+    if pages_back is None:
+        last_page += 1
+    if last_page > num_pages:
+        last_page = num_pages
+    if last_page < num_pages:
+        pages_forward = last_page + half_page_num
+        if pages_forward > num_pages:
+            pages_forward = num_pages
+    else:
+        pages_forward = None
+        if first_page > 1:
+            first_page -= 1
+        if pages_back > 1:
+            pages_back -= 1
+        else:
+            pages_back = None
+    pages_shown = []
+    for i in range(first_page, last_page + 1):
+        pages_shown.append(i)
     return get_template("bootstrap_toolkit/pagination.html").render(
         Context({
-            'page': page,
             'num_pages': num_pages,
             'current_page': current_page,
-            'range_min': range_min,
-            'range_max': range_max,
+            'first_page': first_page,
+            'last_page': last_page,
+            'pages_shown': pages_shown,
+            'pages_back': pages_back,
+            'pages_forward': pages_forward,
         })
     )
 
@@ -167,3 +207,7 @@ def split(str, splitter):
     Split a string
     """
     return str.split(splitter)
+
+@register.simple_tag(takes_context=True)
+def bootstrap_messages(context, *args, **kwargs):
+    return get_template("bootstrap_toolkit/messages.html").render(context)

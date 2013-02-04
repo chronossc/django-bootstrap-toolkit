@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from bootstrap_toolkit.widgets import BootstrapDateInput, BootstrapTextInput
+from bootstrap_toolkit.widgets import BootstrapDateInput, BootstrapTextInput, BootstrapUneditableInput
 
 class TestForm(forms.Form):
     date = forms.DateField(
@@ -12,11 +12,17 @@ class TestForm(forms.Form):
     )
     disabled = forms.CharField(
         max_length=100,
-        help_text=u'I am read only',
+        help_text=u'I am disabled',
         widget=forms.TextInput(attrs={
             'disabled': 'disabled',
             'placeholder': 'I am disabled',
         })
+    )
+    uneditable = forms.CharField(
+        max_length=100,
+        help_text=u'I am uneditable and you cannot enable me with JS',
+        initial=u'Uneditable',
+        widget=BootstrapUneditableInput()
     )
     content = forms.ChoiceField(
         choices=(
@@ -35,19 +41,19 @@ class TestForm(forms.Form):
         ),
         help_text=u'As you can see, multiple checkboxes work too',
     )
-    veggies = forms.MultipleChoiceField(
+    number = forms.MultipleChoiceField(
         widget=forms.CheckboxSelectMultiple(attrs={
             'inline': True,
         }),
         choices=(
-            ("broccoli", "Broccoli"),
-            ("carrots", "Carrots"),
-            ("turnips", "Turnips"),
+            ("3", "Three"),
+            ("33", "Thirty three"),
+            ("333", "Three hundred thirty three"),
         ),
         help_text=u'And can be inline',
     )
     color = forms.ChoiceField(
-        widget=forms.RadioSelect,
+        widget=forms.RadioSelect(attrs = {'data-demo-attr': 'bazinga' }),
         choices=(
             ("#f00", "red"),
             ("#0f0", "green"),
